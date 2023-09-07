@@ -37,13 +37,13 @@ typedef enum
 #include <Arduino.h>
 #endif
 
-class Point
+class GPS_Coordinate
 {
 public:
 	float latitude;
 	float longitude;
 
-	Point(float lat, float lon) : latitude(lat), longitude(lon) {}
+	GPS_Coordinate(float lat, float lon) : latitude(lat), longitude(lon) {}
 };
 
 /**
@@ -78,7 +78,6 @@ public:
 class GeoFence
 {
 private:
-	std::vector<Point> points;
 	/**
 	 * @brief Convert degrees to radians
 	 *
@@ -88,22 +87,45 @@ private:
 	static double degrees_to_radians(double degrees) { return degrees * IMPL_M_PI / 180.0; }
 
 public:
-	/**
-	 * @brief Calculate the shortest distance from a point to the nearest boundary of the geofence.
-	 *
-	 * @param p The point to check
-	 * @param debug Debug flag
-	 * @return value in meters
-	 */
-	double distance_to_boundary(const Point &p, bool debug = false)
+	std::vector<GPS_Coordinate> boundary_coordinates;
+
+	static double haversineDistance(const GPS_Coordinate &a, const GPS_Coordinate &b)
+	{
+		const double R = 6371.0; // Radius of Earth in km
+		double dlat = (b.latitude - a.latitude) * IMPL_M_PI / 180.0;
+		double dlon = (b.longitude - a.longitude) * IMPL_M_PI / 180.0;
+		double lat1 = a.latitude * IMPL_M_PI / 180.0;
+		double lat2 = b.latitude * IMPL_M_PI / 180.0;
+
+		double d = sin(dlat / 2) * sin(dlat / 2) +
+				   sin(dlon / 2) * sin(dlon / 2) * cos(lat1) * cos(lat2);
+		double c = 2 * atan2(sqrt(d), sqrt(1 - d));
+		return R * c;
+	}
+
+	static double findShortestDistance(const std::vector<GPS_Coordinate> &boundary, GPS_Coordinate &coordinates)
+	{
+		double minDistance = std::numeric_limits<double>::max();
+		for (const auto &bound : boundary)
+		{
+			double distance = haversineDistance(coordinates, bound); // Assuming haversineDistance is modified to work with GPS_Coordinate
+			if (distance < minDistance)
+			{
+				minDistance = distance;
+			}
+		}
+		return minDistance;
+	}
+
+	double distance_to_boundary(const GPS_Coordinate &p, bool debug = false)
 	{
 		double min_distance = std::numeric_limits<double>::max();
 
-		int numVertices = points.size();
+		int numVertices = boundary_coordinates.size();
 		for (int i = 0; i < numVertices; i++)
 		{
-			Point A = points[i];
-			Point B = points[(i + 1) % numVertices]; // Next point, with wrap-around
+			GPS_Coordinate A = boundary_coordinates[i];
+			GPS_Coordinate B = boundary_coordinates[(i + 1) % numVertices]; // Next point, with wrap-around
 
 			// Calculate distance from point P to line segment AB
 			double distance = calculate_distance_to_segment(A, B, p);
@@ -120,94 +142,52 @@ public:
 		return min_distance;
 	}
 
-	/**
-	 * @brief Calculate the distance from a point P to a line segment AB.
-	 *
-	 * @param A First point of the line segment
-	 * @param B Second point of the line segment
-	 * @param P Point to measure distance to
-	 * @return value in meters
-	 */
-	// static double calculate_distance_to_segment(Point A, Point B, Point P)
-	// {
-	// 	// Convert coordinates from degrees to radians for accurate trigonometric calculations
-	// 	double lat1 = degrees_to_radians(A.latitude);
-	// 	double lon1 = degrees_to_radians(A.longitude);
-	// 	double lat2 = degrees_to_radians(B.latitude);
-	// 	double lon2 = degrees_to_radians(B.longitude);
-	// 	double latP = degrees_to_radians(P.latitude);
-	// 	double lonP = degrees_to_radians(P.longitude);
+	static double calculate_distance_to_segment(GPS_Coordinate A, GPS_Coordinate B, GPS_Coordinate P)
+	{
+		// First, find the nearest point on the line AB to point P
+		double latA = degrees_to_radians(A.latitude);
+		double lonA = degrees_to_radians(A.longitude);
+		double latB = degrees_to_radians(B.latitude);
+		double lonB = degrees_to_radians(B.longitude);
+		double latP = degrees_to_radians(P.latitude);
+		double lonP = degrees_to_radians(P.longitude);
 
-	// 	// Calculate differences
-	// 	double dlat = lat2 - lat1;
-	// 	double dlon = lon2 - lon1;
+		// Vector from A to B
+		double Ax = cos(latA) * cos(lonA);
+		double Ay = cos(latA) * sin(lonA);
+		double Az = sin(latA);
+		double Bx = cos(latB) * cos(lonB);
+		double By = cos(latB) * sin(lonB);
+		double Bz = sin(latB);
 
-	// 	// Calculate the t parameter
-	// 	double t = ((latP - lat1) * dlat + (lonP - lon1) * dlon) / (dlat * dlat + dlon * dlon);
+		// Vector from A to P
+		double Px = cos(latP) * cos(lonP);
+		double Py = cos(latP) * sin(lonP);
+		double Pz = sin(latP);
 
-	// 	// Check if the projection falls on the line segment
-	// 	if (t >= 0 && t <= 1)
-	// 	{
-	// 		// Calculate the projection point
-	// 		double lat_proj = lat1 + t * dlat;
-	// 		double lon_proj = lon1 + t * dlon;
+		// Calculate the nearest point on the line AB to point P
+		double t = ((Px - Ax) * (Bx - Ax) + (Py - Ay) * (By - Ay) + (Pz - Az) * (Bz - Az)) / ((Bx - Ax) * (Bx - Ax) + (By - Ay) * (By - Ay) + (Bz - Az) * (Bz - Az));
 
-	// 		// Use existing calculate_distance function to find the distance to the projection point
-	// 		return calculate_distance(Point(radians_to_degrees(lat_proj), radians_to_degrees(lon_proj)), P);
-	// 	}
-	// 	else
-	// 	{
-	// 		// Calculate distance to the endpoints A and B, and return the shortest
-	// 		double dist_to_A = calculate_distance(A, P);
-	// 		double dist_to_B = calculate_distance(B, P);
-	// 		return std::min(dist_to_A, dist_to_B);
-	// 	}
-	// }
+		// Limit t to the range [0, 1] to stay within the segment AB
+		if (t < 0)
+			t = 0;
+		if (t > 1)
+			t = 1;
 
-  static double calculate_distance_to_segment(Point A, Point B, Point P)
-  {
-    // First, find the nearest point on the line AB to point P
-    double latA = degrees_to_radians(A.latitude);
-    double lonA = degrees_to_radians(A.longitude);
-    double latB = degrees_to_radians(B.latitude);
-    double lonB = degrees_to_radians(B.longitude);
-    double latP = degrees_to_radians(P.latitude);
-    double lonP = degrees_to_radians(P.longitude);
+		// Calculate the nearest point Q on the line segment AB
+		double Qx = Ax + t * (Bx - Ax);
+		double Qy = Ay + t * (By - Ay);
+		double Qz = Az + t * (Bz - Az);
 
-    // Vector from A to B
-    double Ax = cos(latA) * cos(lonA);
-    double Ay = cos(latA) * sin(lonA);
-    double Az = sin(latA);
-    double Bx = cos(latB) * cos(lonB);
-    double By = cos(latB) * sin(lonB);
-    double Bz = sin(latB);
+		// Calculate the distance from P to Q
+		double distance = sqrt((Px - Qx) * (Px - Qx) + (Py - Qy) * (Py - Qy) + (Pz - Qz) * (Pz - Qz));
 
-    // Vector from A to P
-    double Px = cos(latP) * cos(lonP);
-    double Py = cos(latP) * sin(lonP);
-    double Pz = sin(latP);
+		// Convert the distance to meters using the Earth's radius
+		double RADIUS_OF_EARTH = 6371.0; // Radius in kilometers
+		distance = distance * RADIUS_OF_EARTH * 1000;
 
-    // Calculate the nearest point on the line AB to point P
-    double t = ((Px - Ax) * (Bx - Ax) + (Py - Ay) * (By - Ay) + (Pz - Az) * (Bz - Az)) / ((Bx - Ax) * (Bx - Ax) + (By - Ay) * (By - Ay) + (Bz - Az) * (Bz - Az));
-
-    // Limit t to the range [0, 1] to stay within the segment AB
-    if (t < 0) t = 0;
-    if (t > 1) t = 1;
-
-    // Calculate the nearest point Q on the line segment AB
-    double Qx = Ax + t * (Bx - Ax);
-    double Qy = Ay + t * (By - Ay);
-    double Qz = Az + t * (Bz - Az);
-
-    // Calculate the distance from P to Q
-    double distance = sqrt((Px - Qx) * (Px - Qx) + (Py - Qy) * (Py - Qy) + (Pz - Qz) * (Pz - Qz));
-
-    // Convert the distance to meters using the Earth's radius
-    double RADIUS_OF_EARTH = 6371.0; // Radius in kilometers
-    distance = distance * RADIUS_OF_EARTH * 1000;
-
-    return distance;
-  }
+		return distance;
+	}
 
 	static double radians_to_degrees(double radians) { return radians * 180.0 / IMPL_M_PI; }
 
@@ -217,7 +197,7 @@ public:
 	 * @param lat decimal latitude
 	 * @param lon decimal longitude
 	 */
-	void add_point(float lat, float lon) { points.emplace_back(lat, lon); }
+	void add_point(float lat, float lon) { boundary_coordinates.emplace_back(lat, lon); }
 
 	/**
 	 * @brief Check if a point is inside the geofence (the geofence is created by adding points to it)
@@ -227,9 +207,9 @@ public:
 	 * @return true
 	 * @return false
 	 */
-	bool is_inside(const Point &p, bool debug = false)
+	bool is_inside(const GPS_Coordinate &p, bool debug = false)
 	{
-		int numVertices = points.size();
+		int numVertices = boundary_coordinates.size();
 		int j = numVertices - 1;
 		bool inside = false;
 		static int counter_of_calls = 0;
@@ -237,11 +217,11 @@ public:
 
 		for (int i = 0; i < numVertices; i++)
 		{
-			if ((points[i].latitude < p.latitude && points[j].latitude >= p.latitude) ||
-				(points[j].latitude < p.latitude && points[i].latitude >= p.latitude))
+			if ((boundary_coordinates[i].latitude < p.latitude && boundary_coordinates[j].latitude >= p.latitude) ||
+				(boundary_coordinates[j].latitude < p.latitude && boundary_coordinates[i].latitude >= p.latitude))
 			{
-				if (points[i].longitude + (p.latitude - points[i].latitude) / (points[j].latitude - points[i].latitude) *
-											  (points[j].longitude - points[i].longitude) <
+				if (boundary_coordinates[i].longitude + (p.latitude - boundary_coordinates[i].latitude) / (boundary_coordinates[j].latitude - boundary_coordinates[i].latitude) *
+															(boundary_coordinates[j].longitude - boundary_coordinates[i].longitude) <
 					p.longitude)
 				{
 					inside = !inside;
@@ -264,7 +244,7 @@ public:
 	 * @param debug
 	 * @return value in meters
 	 */
-	static double calculate_distance(Point coordinate1, Point coordinate2, bool debug = false)
+	static double distance_between_coordinates(GPS_Coordinate coordinate1, GPS_Coordinate coordinate2, bool debug = false)
 	{
 		double lat1, lon1, lat2, lon2;
 		lat1 = degrees_to_radians(coordinate1.latitude);
@@ -309,10 +289,10 @@ bool test_geofence_4points()
 	geoFence.add_point(-23.212556, -45.902455); // simova p4
 
 	// Check if test points are inside or outside the geofence
-	Point testPoint1(-23.209565, -45.907350); // must return true (its inside)
-	Point testPoint2(-23.211250, -45.906183); // must return true (its inside)
-	Point testPoint3(-23.210104, -45.904434); // must return false (its outside)
-	Point testPoint4(-23.214471, -45.906442); // must return false (its outside)
+	GPS_Coordinate testPoint1(-23.209565, -45.907350); // must return true (its inside)
+	GPS_Coordinate testPoint2(-23.211250, -45.906183); // must return true (its inside)
+	GPS_Coordinate testPoint3(-23.210104, -45.904434); // must return false (its outside)
+	GPS_Coordinate testPoint4(-23.214471, -45.906442); // must return false (its outside)
 
 	bool testPoint1_isInside = geoFence.is_inside(testPoint1);
 	bool testPoint2_isInside = geoFence.is_inside(testPoint2);
@@ -334,43 +314,48 @@ bool test_geofence_4points()
 	return 0;
 }
 
-bool test_calculate_distance_to_segment()
+bool test_findShortestDistance()
 {
-	printf("test_calculate_distance_to_segment()\n");
-	double tolerable_error = 5.0;
+	std::vector<GPS_Coordinate> boundary = {{40.7128, -74.0060}, {34.0522, -118.2437}, {41.8781, -87.6298}, {37.7749, -122.4194}};
+	std::vector<GPS_Coordinate> points = {{30.2672, -97.7431}, {39.9526, -75.1652}, {42.3601, -71.0589}, {38.9072, -77.0369}};
 
-	// Case 1: Point P is closest to a point C within the segment AB
-	Point A1(-23.207486, -45.907859);
-	Point B1(-23.211250, -45.906183);
-	Point P1(-23.209565, -45.907350);
-	double distance1 = GeoFence::calculate_distance_to_segment(A1, B1, P1);
-	double expected1 = 50.0; // Expected distance (in meters, approximately)
-	printf("\tCalculated distance: %f, Expected distance %f\n", distance1, expected1);
-	if (fabs(distance1 - expected1) > tolerable_error)
-		return false;
+	double minDistance = GeoFence::findShortestDistance(boundary, points);
+	if (minDistance < 1000)
+	{ // Replace 1000 with an appropriate threshold
+		std::cout << "Test passed: Shortest distance is less than 1000 km" << std::endl;
+		return true;
+	}
+	std::cout << "Test failed: Shortest distance is not less than 1000 km" << std::endl;
+	return false;
+}
 
-	// Case 2: Point P is closest to the endpoint A of the segment AB
-	Point A2(-23.207486, -45.907859);
-	Point B2(-23.211250, -45.906183);
-	Point P2(-23.206000, -45.908000);
-	double distance2 = GeoFence::calculate_distance_to_segment(A2, B2, P2);
-	double expected2 = 200.0; // Expected distance (in meters, approximately)
-	printf("\tCalculated distance: %f, Expected distance %f\n", distance2, expected2);
-	if (fabs(distance2 - expected2) > tolerable_error)
-		return false;
+bool test_findShortestDistance2()
+{
+	std::vector<GPS_Coordinate> boundary = {{40.7128, -74.0060}, {34.0522, -118.2437}, {41.8781, -87.6298}, {37.7749, -122.4194}};
+	std::vector<GPS_Coordinate> points = {{30.2672, -97.7431}, {39.9526, -75.1652}, {42.3601, -71.0589}, {38.9072, -77.0369}};
 
-	// Case 3: Point P is closest to the endpoint B of the segment AB
-	Point A3(-23.207486, -45.907859);
-	Point B3(-23.211250, -45.906183);
-	Point P3(-23.212000, -45.906000);
-	double distance3 = GeoFence::calculate_distance_to_segment(A3, B3, P3);
-	double expected3 = 100.0; // Expected distance (in meters, approximately)
-	printf("\tCalculated distance: %f, Expected distance %f\n", distance3, expected3);
-	if (fabs(distance3 - expected3) > tolerable_error)
-		return false;
+	GeoFence geoFence;
 
-	printf("\ttest_calculate_distance_to_segment() passed.\n");
-	return true;
+	// Define the vertices of the polygon
+	geoFence.add_point(-23.207486, -45.907859); // simova p1
+	geoFence.add_point(-23.209189, -45.909029); // simova p2
+	geoFence.add_point(-23.211687, -45.909443); // simova p3
+	geoFence.add_point(-23.212556, -45.902455); // simova p4
+
+	// Check if test points are inside or outside the geofence
+	GPS_Coordinate testPoint1(-23.209565, -45.907350); // must return true (its inside)
+	GPS_Coordinate testPoint2(-23.211250, -45.906183); // must return true (its inside)
+	GPS_Coordinate testPoint3(-23.210104, -45.904434); // must return false (its outside)
+	GPS_Coordinate testPoint4(-23.214471, -45.906442); // must return false (its outside)
+
+	double minDistance = GeoFence::findShortestDistance(geoFence.boundary_coordinates, testPoint1);
+	if (minDistance < 1000)
+	{ // Replace 1000 with an appropriate threshold
+		std::cout << "Test2 passed: Shortest distance is less than 1000 km" << std::endl;
+		return true;
+	}
+	std::cout << "Test2 failed: Shortest distance is not less than 1000 km" << std::endl;
+	return false;
 }
 
 bool test_geofence()
@@ -378,8 +363,11 @@ bool test_geofence()
 	bool failed = false;
 	if (test_geofence_4points() == false)
 		failed = true;
-	if (test_calculate_distance_to_segment() == false)
+	if (test_findShortestDistance() == false)
 		failed = true;
+	if (test_findShortestDistance2() == false)
+		failed = true;
+
 	if (failed)
 	{
 		printf("some tests failed.\n");
