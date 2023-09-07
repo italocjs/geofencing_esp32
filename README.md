@@ -1,5 +1,5 @@
 # Easy geofencing on ESP32 and arduino: How C++ and Python can be your best friends
-For more detail, please check this article: __to_add_link__
+For more detail, please check this article: https://www.linkedin.com/pulse/easy-geofencing-esp32-arduino-how-c-python-can-your-best-italo-soares/
 
 ## What is Geofencing? 📍
 
