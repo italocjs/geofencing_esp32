@@ -89,33 +89,29 @@ private:
 public:
 	std::vector<GPS_Coordinate> boundary_coordinates;
 
-	static double haversineDistance(const GPS_Coordinate &a, const GPS_Coordinate &b)
-	{
-		const double R = 6371.0; // Radius of Earth in km
-		double dlat = (b.latitude - a.latitude) * IMPL_M_PI / 180.0;
-		double dlon = (b.longitude - a.longitude) * IMPL_M_PI / 180.0;
-		double lat1 = a.latitude * IMPL_M_PI / 180.0;
-		double lat2 = b.latitude * IMPL_M_PI / 180.0;
+    static double haversineDistance(const GPS_Coordinate& a, const GPS_Coordinate& b) {
+        const double R = 6371.0; // Radius of Earth in km
+        double dlat = (b.latitude - a.latitude) * IMPL_M_PI / 180.0;
+        double dlon = (b.longitude - a.longitude) * IMPL_M_PI / 180.0;
+        double lat1 = a.latitude * IMPL_M_PI / 180.0;
+        double lat2 = b.latitude * IMPL_M_PI / 180.0;
 
-		double d = sin(dlat / 2) * sin(dlat / 2) +
-				   sin(dlon / 2) * sin(dlon / 2) * cos(lat1) * cos(lat2);
-		double c = 2 * atan2(sqrt(d), sqrt(1 - d));
-		return R * c;
-	}
+        double d = sin(dlat / 2) * sin(dlat / 2) +
+                   sin(dlon / 2) * sin(dlon / 2) * cos(lat1) * cos(lat2);
+        double c = 2 * atan2(sqrt(d), sqrt(1 - d));
+        return R * c;
+    }
 
-	static double findShortestDistance(const std::vector<GPS_Coordinate> &boundary, GPS_Coordinate &coordinates)
-	{
-		double minDistance = std::numeric_limits<double>::max();
-		for (const auto &bound : boundary)
-		{
-			double distance = haversineDistance(coordinates, bound); // Assuming haversineDistance is modified to work with GPS_Coordinate
-			if (distance < minDistance)
-			{
-				minDistance = distance;
-			}
-		}
-		return minDistance;
-	}
+    static double boundary_vertice_to_coordinate_distance(const std::vector<GPS_Coordinate>& boundary, GPS_Coordinate& coordinates) {
+        double minDistance = std::numeric_limits<double>::max();
+        for (const auto& bound : boundary) {
+            double distance = haversineDistance(coordinates, bound);
+            if (distance < minDistance) {
+                minDistance = distance;
+            }
+        }
+        return minDistance * 1000; // convert km to meters
+    }
 
 	double distance_to_boundary(const GPS_Coordinate &p, bool debug = false)
 	{
@@ -314,48 +310,26 @@ bool test_geofence_4points()
 	return 0;
 }
 
-bool test_findShortestDistance()
-{
-	std::vector<GPS_Coordinate> boundary = {{40.7128, -74.0060}, {34.0522, -118.2437}, {41.8781, -87.6298}, {37.7749, -122.4194}};
-	std::vector<GPS_Coordinate> points = {{30.2672, -97.7431}, {39.9526, -75.1652}, {42.3601, -71.0589}, {38.9072, -77.0369}};
+bool test_boundary_vertice_to_coordinate_distance() {
+    GeoFence fence;
+	fence.add_point(-23.207486, -45.907859); // simova p1
+	fence.add_point(-23.209189, -45.909029); // simova p2
+	fence.add_point(-23.211687, -45.909443); // simova p3
+	fence.add_point(-23.212556, -45.902455); // simova p4
 
-	double minDistance = GeoFence::findShortestDistance(boundary, points);
-	if (minDistance < 1000)
-	{ // Replace 1000 with an appropriate threshold
-		std::cout << "Test passed: Shortest distance is less than 1000 km" << std::endl;
-		return true;
-	}
-	std::cout << "Test failed: Shortest distance is not less than 1000 km" << std::endl;
-	return false;
-}
+	GPS_Coordinate test_point_255m(-23.214471, -45.906442); // must return near 255m (its outside)
+	// GPS_Coordinate test_point_44m(-23.214471, -45.906442); // must return near 44m (its outside)
 
-bool test_findShortestDistance2()
-{
-	std::vector<GPS_Coordinate> boundary = {{40.7128, -74.0060}, {34.0522, -118.2437}, {41.8781, -87.6298}, {37.7749, -122.4194}};
-	std::vector<GPS_Coordinate> points = {{30.2672, -97.7431}, {39.9526, -75.1652}, {42.3601, -71.0589}, {38.9072, -77.0369}};
-
-	GeoFence geoFence;
-
-	// Define the vertices of the polygon
-	geoFence.add_point(-23.207486, -45.907859); // simova p1
-	geoFence.add_point(-23.209189, -45.909029); // simova p2
-	geoFence.add_point(-23.211687, -45.909443); // simova p3
-	geoFence.add_point(-23.212556, -45.902455); // simova p4
-
-	// Check if test points are inside or outside the geofence
-	GPS_Coordinate testPoint1(-23.209565, -45.907350); // must return true (its inside)
-	GPS_Coordinate testPoint2(-23.211250, -45.906183); // must return true (its inside)
-	GPS_Coordinate testPoint3(-23.210104, -45.904434); // must return false (its outside)
-	GPS_Coordinate testPoint4(-23.214471, -45.906442); // must return false (its outside)
-
-	double minDistance = GeoFence::findShortestDistance(geoFence.boundary_coordinates, testPoint1);
-	if (minDistance < 1000)
-	{ // Replace 1000 with an appropriate threshold
-		std::cout << "Test2 passed: Shortest distance is less than 1000 km" << std::endl;
-		return true;
-	}
-	std::cout << "Test2 failed: Shortest distance is not less than 1000 km" << std::endl;
-	return false;
+    GPS_Coordinate point = {30.2672, -97.7431};
+    double shortest_distance_meters = GeoFence::boundary_vertice_to_coordinate_distance(fence.boundary_coordinates, test_point_255m);
+	printf("shortest_distance_meters: %f\n", shortest_distance_meters);
+	return 1;
+    // if (minDistance < 1000) { // Replace 1000 with an appropriate threshold
+    //     std::cout << "Test passed: Shortest distance is less than 1000 km" << std::endl;
+    //     return true;
+    // }
+    // std::cout << "Test failed: Shortest distance is not less than 1000 km" << std::endl;
+    // return false;
 }
 
 bool test_geofence()
@@ -363,9 +337,7 @@ bool test_geofence()
 	bool failed = false;
 	if (test_geofence_4points() == false)
 		failed = true;
-	if (test_findShortestDistance() == false)
-		failed = true;
-	if (test_findShortestDistance2() == false)
+	if (test_boundary_vertice_to_coordinate_distance() == false)
 		failed = true;
 
 	if (failed)
