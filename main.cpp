@@ -4,35 +4,36 @@
 #if defined(_WIN32) || defined(__linux__)
 #include <math.h>
 #include <iostream>
-#define IMPL_M_PI 3.14159265358979323846 //same as esp32
-//define the esp_err_t for windows and linux
-typedef enum {
-    ESP_OK = 0, /*!< esp_err_t value indicating success (no error) */
-    ESP_FAIL = -1, /*!< Generic esp_err_t code indicating failure */
-    ESP_ERR_NO_MEM = 0x101, /*!< Out of memory */
-    ESP_ERR_INVALID_ARG = 0x102, /*!< Invalid argument */
-    ESP_ERR_INVALID_STATE = 0x103, /*!< Invalid state */
-    ESP_ERR_INVALID_SIZE = 0x104, /*!< Invalid size */
-    ESP_ERR_NOT_FOUND = 0x105, /*!< Requested resource not found */
-    ESP_ERR_NOT_SUPPORTED = 0x106, /*!< Operation or feature not supported */
-    ESP_ERR_TIMEOUT = 0x107, /*!< Operation timed out */
-    ESP_ERR_INVALID_RESPONSE = 0x108, /*!< Received response was invalid */
-    ESP_ERR_INVALID_CRC = 0x109, /*!< CRC or checksum was invalid */
-    ESP_ERR_INVALID_VERSION = 0x10A, /*!< Version was invalid */
-    ESP_ERR_INVALID_MAC = 0x10B, /*!< MAC address was invalid */
-    ESP_ERR_NOT_FINISHED = 0x10C, /*!< There are items remained to retrieve */
-    ESP_ERR_WIFI_BASE = 0x3000, /*!< Starting number of WiFi error codes */
-    ESP_ERR_MESH_BASE = 0x4000, /*!< Starting number of MESH error codes */
-    ESP_ERR_FLASH_BASE = 0x6000, /*!< Starting number of flash error codes */
-    ESP_ERR_HW_CRYPTO_BASE = 0xc000, /*!< Starting number of HW cryptography module error codes */
-    ESP_ERR_MEMPROT_BASE = 0xd000 /*!< Starting number of Memory Protection API error codes */
+#define IMPL_M_PI 3.14159265358979323846 // same as esp32
+// define the esp_err_t for windows and linux
+typedef enum
+{
+	ESP_OK = 0,						  /*!< esp_err_t value indicating success (no error) */
+	ESP_FAIL = -1,					  /*!< Generic esp_err_t code indicating failure */
+	ESP_ERR_NO_MEM = 0x101,			  /*!< Out of memory */
+	ESP_ERR_INVALID_ARG = 0x102,	  /*!< Invalid argument */
+	ESP_ERR_INVALID_STATE = 0x103,	  /*!< Invalid state */
+	ESP_ERR_INVALID_SIZE = 0x104,	  /*!< Invalid size */
+	ESP_ERR_NOT_FOUND = 0x105,		  /*!< Requested resource not found */
+	ESP_ERR_NOT_SUPPORTED = 0x106,	  /*!< Operation or feature not supported */
+	ESP_ERR_TIMEOUT = 0x107,		  /*!< Operation timed out */
+	ESP_ERR_INVALID_RESPONSE = 0x108, /*!< Received response was invalid */
+	ESP_ERR_INVALID_CRC = 0x109,	  /*!< CRC or checksum was invalid */
+	ESP_ERR_INVALID_VERSION = 0x10A,  /*!< Version was invalid */
+	ESP_ERR_INVALID_MAC = 0x10B,	  /*!< MAC address was invalid */
+	ESP_ERR_NOT_FINISHED = 0x10C,	  /*!< There are items remained to retrieve */
+	ESP_ERR_WIFI_BASE = 0x3000,		  /*!< Starting number of WiFi error codes */
+	ESP_ERR_MESH_BASE = 0x4000,		  /*!< Starting number of MESH error codes */
+	ESP_ERR_FLASH_BASE = 0x6000,	  /*!< Starting number of flash error codes */
+	ESP_ERR_HW_CRYPTO_BASE = 0xc000,  /*!< Starting number of HW cryptography module error codes */
+	ESP_ERR_MEMPROT_BASE = 0xd000	  /*!< Starting number of Memory Protection API error codes */
 } esp_err_t;
 #elif defined(ESP32)
 #define IMPL_M_PI M_PI
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #elif defined(ARDUINO)
-#define IMPL_M_PI M_PI		//not sure, may be smaller. check
+#define IMPL_M_PI M_PI // not sure, may be smaller. check
 #include <Arduino.h>
 #endif
 
@@ -166,7 +167,6 @@ public:
 		return distance;
 	}
 };
-
 
 /**
  * @brief Test the geofence with 4 points, the geofence is a random neigborhood in Brazil.
@@ -345,9 +345,9 @@ bool test_geofence_99points()
 bool test_calculate_distance()
 {
 	printf("test_calculate_distance()\n");
-	double tolerable_error = 5.0; // how many meters of error is acceptable? Remember that this class does not use geoide models, so there will be a difference when comparing to GoogleEarth measurements.
+	double tolerable_error = 5.0;					// how many meters of error is acceptable? Remember that this class does not use geoide models, so there will be a difference when comparing to GoogleEarth measurements.
 	double distance_reference = 452.22873765131664; // in meters using using the Haversine formula (python).
-	//double distance_reference = 450.77551416860337; // in meters using Geodesic model for more precision (python).
+	// double distance_reference = 450.77551416860337; // in meters using Geodesic model for more precision (python).
 
 	GeoFence geoFence;
 	Point coordinate_01(-23.207486, -45.907859);
@@ -373,7 +373,7 @@ bool test_geofence()
 	test_geofence_99points();
 	test_calculate_distance();
 
-	//check if all tests passed
+	// check if all tests passed
 	if (test_geofence_4points() && test_geofence_99points() && test_calculate_distance())
 	{
 		printf("all tests passed.\n");
@@ -387,6 +387,7 @@ bool test_geofence()
 int main()
 {
 	test_geofence();
+	system("pause");
 	return 1;
 }
 #endif
