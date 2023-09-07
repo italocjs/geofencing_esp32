@@ -314,19 +314,40 @@ bool test_geofence_4points()
 	return 0;
 }
 
-bool test_boundary_vertice_to_coordinate_distance()
+bool test_fence_distance()
 {
+	printf("test_fence_distance()\n");
 	GeoFence fence;
-	fence.add_point(-23.207486, -45.907859); // simova p1
-	fence.add_point(-23.209189, -45.909029); // simova p2
-	fence.add_point(-23.211687, -45.909443); // simova p3
-	fence.add_point(-23.212556, -45.902455); // simova p4
+	fence.add_point(-23.207486, -45.907859);				// p1
+	fence.add_point(-23.209189, -45.909029);				// p2
+	fence.add_point(-23.211687, -45.909443);				// p3
+	fence.add_point(-23.212556, -45.902455);				// p4
+	GPS_Coordinate test_coordinate(-23.214471, -45.906442); // test coordinate outside the fence
 
-	GPS_Coordinate test_point_433m(-23.214471, -45.906442); // must return near 433m (its outside the fence)
+	double acceptable_error = 5;			// in meters
+	double gmaps_distance_to_fence = 265.0; // obtained on google earth
+	double lib_distance_to_fence = fence.distance_to_boundary(test_coordinate, false);
+	double lib_dtf_error = abs(gmaps_distance_to_fence - lib_distance_to_fence);
+	printf("\tgmaps_distance_to_fence: %0.2fm, lib_distance_to_fence: %0.2fm, error: %0.2fm, acceptable_error: %0.2f\n", gmaps_distance_to_fence, lib_distance_to_fence, lib_dtf_error, acceptable_error);
 
-	GPS_Coordinate point = {30.2672, -97.7431};
-	double shortest_distance_meters = GeoFence::boundary_vertice_to_coordinate_distance(fence.boundary_coordinates, test_point_433m);
-	printf("shortest_distance_meters: %f\n", shortest_distance_meters);
+	double gmaps_distance_to_nearest_vertice = 435.01; // obtained on google earth
+	double lib_distance_to_nearest_vertice = GeoFence::boundary_vertice_to_coordinate_distance(fence.boundary_coordinates, test_coordinate);
+	double lib_dtnv_error = abs(gmaps_distance_to_nearest_vertice - lib_distance_to_nearest_vertice);
+	printf("\tgmaps_distance_to_nearest_vertice: %0.2fm, lib_distance_to_nearest_vertice: %0.2fm, error: %0.2fm, acceptable_error: %0.2f\n", gmaps_distance_to_nearest_vertice, lib_distance_to_nearest_vertice, lib_dtnv_error, acceptable_error);
+
+	if (lib_dtf_error > acceptable_error)
+	{
+		printf("\tgmaps_distance_to_fence() failed, error above %0.2f\n", acceptable_error);
+		return 0;
+	}
+
+	if (lib_dtnv_error > acceptable_error)
+	{
+		printf("\tgmaps_distance_to_nearest_vertice() failed, error above %0.2f\n", acceptable_error);
+		return 0;
+	}
+
+	printf("\ttest_fence_distance() passed.\n");
 	return 1;
 }
 
@@ -335,7 +356,7 @@ bool test_geofence()
 	bool failed = false;
 	if (test_geofence_4points() == false)
 		failed = true;
-	if (test_boundary_vertice_to_coordinate_distance() == false)
+	if (test_fence_distance() == false)
 		failed = true;
 
 	if (failed)
