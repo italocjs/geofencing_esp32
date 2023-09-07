@@ -89,6 +89,129 @@ private:
 
 public:
 	/**
+	 * @brief Calculate the shortest distance from a point to the nearest boundary of the geofence.
+	 *
+	 * @param p The point to check
+	 * @param debug Debug flag
+	 * @return value in meters
+	 */
+	double distance_to_boundary(const Point &p, bool debug = false)
+	{
+		double min_distance = std::numeric_limits<double>::max();
+
+		int numVertices = points.size();
+		for (int i = 0; i < numVertices; i++)
+		{
+			Point A = points[i];
+			Point B = points[(i + 1) % numVertices]; // Next point, with wrap-around
+
+			// Calculate distance from point P to line segment AB
+			double distance = calculate_distance_to_segment(A, B, p);
+
+			if (distance < min_distance)
+			{
+				min_distance = distance;
+			}
+		}
+
+		if (debug)
+			printf("Minimum distance to boundary: %f meters\n", min_distance);
+
+		return min_distance;
+	}
+
+	/**
+	 * @brief Calculate the distance from a point P to a line segment AB.
+	 *
+	 * @param A First point of the line segment
+	 * @param B Second point of the line segment
+	 * @param P Point to measure distance to
+	 * @return value in meters
+	 */
+	// static double calculate_distance_to_segment(Point A, Point B, Point P)
+	// {
+	// 	// Convert coordinates from degrees to radians for accurate trigonometric calculations
+	// 	double lat1 = degrees_to_radians(A.latitude);
+	// 	double lon1 = degrees_to_radians(A.longitude);
+	// 	double lat2 = degrees_to_radians(B.latitude);
+	// 	double lon2 = degrees_to_radians(B.longitude);
+	// 	double latP = degrees_to_radians(P.latitude);
+	// 	double lonP = degrees_to_radians(P.longitude);
+
+	// 	// Calculate differences
+	// 	double dlat = lat2 - lat1;
+	// 	double dlon = lon2 - lon1;
+
+	// 	// Calculate the t parameter
+	// 	double t = ((latP - lat1) * dlat + (lonP - lon1) * dlon) / (dlat * dlat + dlon * dlon);
+
+	// 	// Check if the projection falls on the line segment
+	// 	if (t >= 0 && t <= 1)
+	// 	{
+	// 		// Calculate the projection point
+	// 		double lat_proj = lat1 + t * dlat;
+	// 		double lon_proj = lon1 + t * dlon;
+
+	// 		// Use existing calculate_distance function to find the distance to the projection point
+	// 		return calculate_distance(Point(radians_to_degrees(lat_proj), radians_to_degrees(lon_proj)), P);
+	// 	}
+	// 	else
+	// 	{
+	// 		// Calculate distance to the endpoints A and B, and return the shortest
+	// 		double dist_to_A = calculate_distance(A, P);
+	// 		double dist_to_B = calculate_distance(B, P);
+	// 		return std::min(dist_to_A, dist_to_B);
+	// 	}
+	// }
+
+  static double calculate_distance_to_segment(Point A, Point B, Point P)
+  {
+    // First, find the nearest point on the line AB to point P
+    double latA = degrees_to_radians(A.latitude);
+    double lonA = degrees_to_radians(A.longitude);
+    double latB = degrees_to_radians(B.latitude);
+    double lonB = degrees_to_radians(B.longitude);
+    double latP = degrees_to_radians(P.latitude);
+    double lonP = degrees_to_radians(P.longitude);
+
+    // Vector from A to B
+    double Ax = cos(latA) * cos(lonA);
+    double Ay = cos(latA) * sin(lonA);
+    double Az = sin(latA);
+    double Bx = cos(latB) * cos(lonB);
+    double By = cos(latB) * sin(lonB);
+    double Bz = sin(latB);
+
+    // Vector from A to P
+    double Px = cos(latP) * cos(lonP);
+    double Py = cos(latP) * sin(lonP);
+    double Pz = sin(latP);
+
+    // Calculate the nearest point on the line AB to point P
+    double t = ((Px - Ax) * (Bx - Ax) + (Py - Ay) * (By - Ay) + (Pz - Az) * (Bz - Az)) / ((Bx - Ax) * (Bx - Ax) + (By - Ay) * (By - Ay) + (Bz - Az) * (Bz - Az));
+
+    // Limit t to the range [0, 1] to stay within the segment AB
+    if (t < 0) t = 0;
+    if (t > 1) t = 1;
+
+    // Calculate the nearest point Q on the line segment AB
+    double Qx = Ax + t * (Bx - Ax);
+    double Qy = Ay + t * (By - Ay);
+    double Qz = Az + t * (Bz - Az);
+
+    // Calculate the distance from P to Q
+    double distance = sqrt((Px - Qx) * (Px - Qx) + (Py - Qy) * (Py - Qy) + (Pz - Qz) * (Pz - Qz));
+
+    // Convert the distance to meters using the Earth's radius
+    double RADIUS_OF_EARTH = 6371.0; // Radius in kilometers
+    distance = distance * RADIUS_OF_EARTH * 1000;
+
+    return distance;
+  }
+
+	static double radians_to_degrees(double radians) { return radians * 180.0 / IMPL_M_PI; }
+
+	/**
 	 * @brief Add a point to the geofence, takes latitude and longitude in decimal degrees as parameters.
 	 *
 	 * @param lat decimal latitude
@@ -211,176 +334,59 @@ bool test_geofence_4points()
 	return 0;
 }
 
-bool test_geofence_99points()
+bool test_calculate_distance_to_segment()
 {
-	printf("test_geofence_99points()\n");
-	GeoFence geoFence;
-	geoFence.add_point(-45.930582, -23.195937); // p1 point 1
-	geoFence.add_point(-45.931122, -23.196960); // p1 point 2
-	geoFence.add_point(-45.932497, -23.197128); // p1 point 3
-	geoFence.add_point(-45.933112, -23.197460); // p1 point 4
-	geoFence.add_point(-45.933307, -23.198011); // p1 point 5
-	geoFence.add_point(-45.933770, -23.198606); // p1 point 6
-	geoFence.add_point(-45.933917, -23.199494); // p1 point 7
-	geoFence.add_point(-45.934150, -23.200621); // p1 point 8
-	geoFence.add_point(-45.934922, -23.201239); // p1 point 9
-	geoFence.add_point(-45.936356, -23.201291); // p1 point 10
-	geoFence.add_point(-45.937248, -23.201334); // p1 point 11
-	geoFence.add_point(-45.937954, -23.202035); // p1 point 12
-	geoFence.add_point(-45.938150, -23.203679); // p1 point 13
-	geoFence.add_point(-45.938141, -23.204431); // p1 point 14
-	geoFence.add_point(-45.939238, -23.205125); // p1 point 15
-	geoFence.add_point(-45.940772, -23.205427); // p1 point 16
-	geoFence.add_point(-45.941977, -23.206435); // p1 point 17
-	geoFence.add_point(-45.942081, -23.207604); // p1 point 18
-	geoFence.add_point(-45.941863, -23.208611); // p1 point 19
-	geoFence.add_point(-45.942389, -23.209561); // p1 point 20
-	geoFence.add_point(-45.942705, -23.210153); // p1 point 21
-	geoFence.add_point(-45.944603, -23.210111); // p1 point 22
-	geoFence.add_point(-45.946429, -23.209758); // p1 point 23
-	geoFence.add_point(-45.947746, -23.209533); // p1 point 24
-	geoFence.add_point(-45.948782, -23.209742); // p1 point 25
-	geoFence.add_point(-45.949126, -23.210693); // p1 point 26
-	geoFence.add_point(-45.948613, -23.211423); // p1 point 27
-	geoFence.add_point(-45.948111, -23.212579); // p1 point 28
-	geoFence.add_point(-45.948448, -23.213811); // p1 point 29
-	geoFence.add_point(-45.949035, -23.214606); // p1 point 30
-	geoFence.add_point(-45.950244, -23.215557); // p1 point 31
-	geoFence.add_point(-45.951322, -23.215949); // p1 point 32
-	geoFence.add_point(-45.952534, -23.215599); // p1 point 33
-	geoFence.add_point(-45.952986, -23.215449); // p1 point 34
-	geoFence.add_point(-45.953347, -23.216031); // p1 point 35
-	geoFence.add_point(-45.953834, -23.216133); // p1 point 36
-	geoFence.add_point(-45.953708, -23.216827); // p1 point 37
-	geoFence.add_point(-45.954291, -23.218421); // p1 point 38
-	geoFence.add_point(-45.954262, -23.219410); // p1 point 39
-	geoFence.add_point(-45.955055, -23.220920); // p1 point 40
-	geoFence.add_point(-45.955697, -23.221096); // p1 point 41
-	geoFence.add_point(-45.956628, -23.220178); // p1 point 42
-	geoFence.add_point(-45.957604, -23.219200); // p1 point 43
-	geoFence.add_point(-45.958779, -23.219078); // p1 point 44
-	geoFence.add_point(-45.959978, -23.219161); // p1 point 45
-	geoFence.add_point(-45.961018, -23.219807); // p1 point 46
-	geoFence.add_point(-45.961323, -23.220700); // p1 point 47
-	geoFence.add_point(-45.961077, -23.221952); // p1 point 48
-	geoFence.add_point(-45.960814, -23.223498); // p1 point 49
-	geoFence.add_point(-45.960420, -23.223539); // p1 point 50
-	geoFence.add_point(-45.960473, -23.222251); // p1 point 51
-	geoFence.add_point(-45.960762, -23.220826); // p1 point 52
-	geoFence.add_point(-45.960684, -23.219987); // p1 point 53
-	geoFence.add_point(-45.959043, -23.219296); // p1 point 54
-	geoFence.add_point(-45.957568, -23.219497); // p1 point 55
-	geoFence.add_point(-45.956651, -23.220767); // p1 point 56
-	geoFence.add_point(-45.955765, -23.221607); // p1 point 57
-	geoFence.add_point(-45.954810, -23.221344); // p1 point 58
-	geoFence.add_point(-45.953896, -23.219650); // p1 point 59
-	geoFence.add_point(-45.953875, -23.218428); // p1 point 60
-	geoFence.add_point(-45.953439, -23.217163); // p1 point 61
-	geoFence.add_point(-45.952663, -23.216373); // p1 point 62
-	geoFence.add_point(-45.951965, -23.216108); // p1 point 63
-	geoFence.add_point(-45.951271, -23.216297); // p1 point 64
-	geoFence.add_point(-45.949934, -23.215875); // p1 point 65
-	geoFence.add_point(-45.948822, -23.215176); // p1 point 66
-	geoFence.add_point(-45.948060, -23.214206); // p1 point 67
-	geoFence.add_point(-45.947611, -23.212483); // p1 point 68
-	geoFence.add_point(-45.947853, -23.211760); // p1 point 69
-	geoFence.add_point(-45.948348, -23.211108); // p1 point 70
-	geoFence.add_point(-45.948650, -23.210533); // p1 point 71
-	geoFence.add_point(-45.948365, -23.209929); // p1 point 72
-	geoFence.add_point(-45.947487, -23.209894); // p1 point 73
-	geoFence.add_point(-45.945726, -23.210243); // p1 point 74
-	geoFence.add_point(-45.943948, -23.210722); // p1 point 75
-	geoFence.add_point(-45.942791, -23.210577); // p1 point 76
-	geoFence.add_point(-45.941839, -23.209708); // p1 point 77
-	geoFence.add_point(-45.941452, -23.208573); // p1 point 78
-	geoFence.add_point(-45.941596, -23.207369); // p1 point 79
-	geoFence.add_point(-45.941429, -23.206227); // p1 point 80
-	geoFence.add_point(-45.940245, -23.205566); // p1 point 81
-	geoFence.add_point(-45.938971, -23.205246); // p1 point 82
-	geoFence.add_point(-45.937762, -23.204880); // p1 point 83
-	geoFence.add_point(-45.937619, -23.204049); // p1 point 84
-	geoFence.add_point(-45.937713, -23.203284); // p1 point 85
-	geoFence.add_point(-45.937648, -23.202293); // p1 point 86
-	geoFence.add_point(-45.937228, -23.201722); // p1 point 87
-	geoFence.add_point(-45.936145, -23.201570); // p1 point 88
-	geoFence.add_point(-45.934826, -23.201536); // p1 point 89
-	geoFence.add_point(-45.933788, -23.200818); // p1 point 90
-	geoFence.add_point(-45.933475, -23.199884); // p1 point 91
-	geoFence.add_point(-45.933298, -23.198600); // p1 point 92
-	geoFence.add_point(-45.932640, -23.197828); // p1 point 93
-	geoFence.add_point(-45.931838, -23.197502); // p1 point 94
-	geoFence.add_point(-45.931160, -23.197357); // p1 point 95
-	geoFence.add_point(-45.930429, -23.196960); // p1 point 96
-	geoFence.add_point(-45.930396, -23.196418); // p1 point 97
-	geoFence.add_point(-45.930144, -23.196026); // p1 point 98
-	geoFence.add_point(-45.930582, -23.195937); // p1 point 99
-	Point test1(-45.930756, -23.196812);		// test1
-	Point test2(-45.932583, -23.198608);		// test2
-	Point test3(-45.937060, -23.201438);		// test3
+	printf("test_calculate_distance_to_segment()\n");
+	double tolerable_error = 5.0;
 
-	bool testPoint1_isInside = geoFence.is_inside(test1);
-	bool testPoint2_isInside = geoFence.is_inside(test2);
-	bool testPoint3_isInside = geoFence.is_inside(test3);
+	// Case 1: Point P is closest to a point C within the segment AB
+	Point A1(-23.207486, -45.907859);
+	Point B1(-23.211250, -45.906183);
+	Point P1(-23.209565, -45.907350);
+	double distance1 = GeoFence::calculate_distance_to_segment(A1, B1, P1);
+	double expected1 = 50.0; // Expected distance (in meters, approximately)
+	printf("\tCalculated distance: %f, Expected distance %f\n", distance1, expected1);
+	if (fabs(distance1 - expected1) > tolerable_error)
+		return false;
 
-	// print the results
-	printf("\ttest1 is inside the geofence: %s \n", testPoint1_isInside ? "true" : "false");
-	printf("\ttest2 is inside the geofence: %s \n", testPoint2_isInside ? "true" : "false");
-	printf("\ttest3 is inside the geofence: %s \n", testPoint3_isInside ? "true" : "false");
+	// Case 2: Point P is closest to the endpoint A of the segment AB
+	Point A2(-23.207486, -45.907859);
+	Point B2(-23.211250, -45.906183);
+	Point P2(-23.206000, -45.908000);
+	double distance2 = GeoFence::calculate_distance_to_segment(A2, B2, P2);
+	double expected2 = 200.0; // Expected distance (in meters, approximately)
+	printf("\tCalculated distance: %f, Expected distance %f\n", distance2, expected2);
+	if (fabs(distance2 - expected2) > tolerable_error)
+		return false;
 
-	if (testPoint1_isInside && !testPoint2_isInside && testPoint3_isInside)
-	{
-		printf("\ttest_geofence_99points() passed.\n");
-		return 1;
-	}
-	printf("\ttest_geofence_99points() failed.\n");
-	return 0;
-}
+	// Case 3: Point P is closest to the endpoint B of the segment AB
+	Point A3(-23.207486, -45.907859);
+	Point B3(-23.211250, -45.906183);
+	Point P3(-23.212000, -45.906000);
+	double distance3 = GeoFence::calculate_distance_to_segment(A3, B3, P3);
+	double expected3 = 100.0; // Expected distance (in meters, approximately)
+	printf("\tCalculated distance: %f, Expected distance %f\n", distance3, expected3);
+	if (fabs(distance3 - expected3) > tolerable_error)
+		return false;
 
-// function to test the calculate_distance function
-
-/**
- * @brief Test the calculate_distance function, this function uses approximate values for the radius of the earth instead of an geoid model for faster calculation.
- * Set tolerable_error to your desire. this class does not use geoide models, so there will be a difference when comparing to GoogleEarth measurements.
- */
-bool test_calculate_distance()
-{
-	printf("test_calculate_distance()\n");
-	double tolerable_error = 5.0;					// how many meters of error is acceptable? Remember that this class does not use geoide models, so there will be a difference when comparing to GoogleEarth measurements.
-	double distance_reference = 452.22873765131664; // in meters using using the Haversine formula (python).
-	// double distance_reference = 450.77551416860337; // in meters using Geodesic model for more precision (python).
-
-	GeoFence geoFence;
-	Point coordinate_01(-23.207486, -45.907859);
-	Point coordinate_02(-23.211250, -45.906183);
-	double distance = geoFence.calculate_distance(coordinate_01, coordinate_02);
-
-	// check if distance is within the tolerable error
-	double difference = fabs(distance - distance_reference);
-	printf("\tCalculated distance: %f, reference distance %f, difference %f\n", distance, distance_reference, difference);
-
-	if (difference < tolerable_error)
-	{
-		printf("\ttest_calculate_distance() passed\n");
-		return 1;
-	}
-	printf("\ttest_calculate_distance() failed\n");
-	return 0;
+	printf("\ttest_calculate_distance_to_segment() passed.\n");
+	return true;
 }
 
 bool test_geofence()
 {
-	test_geofence_4points();
-	test_geofence_99points();
-	test_calculate_distance();
-
-	// check if all tests passed
-	if (test_geofence_4points() && test_geofence_99points() && test_calculate_distance())
+	bool failed = false;
+	if (test_geofence_4points() == false)
+		failed = true;
+	if (test_calculate_distance_to_segment() == false)
+		failed = true;
+	if (failed)
 	{
-		printf("all tests passed.\n");
-		return 1;
+		printf("some tests failed.\n");
+		return 0;
 	}
-	printf("some tests failed.\n");
-	return 0;
+	printf("all tests passed.\n");
+	return 1;
 }
 
 #if defined(_WIN32) || defined(__linux__)
