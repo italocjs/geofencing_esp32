@@ -7,7 +7,7 @@ Geofencing is a technology that defines a virtual boundary around a real-world g
 
 ## Quick Steps to Use the Python Script 🗺️
 
-1️⃣ Copy your chosen group in Google Earth. 
+1️⃣ Copy your chosen group in Google Earth.
 2️⃣ Paste it into the google_earth.xml file. 
 3️⃣ Run the google_earth_polygon_parser.py script. 
 4️⃣ Copy and paste the output C++ code into your ESP32 setup. 
@@ -20,7 +20,5 @@ Setting up your geofence in Google Earth is straightforward, but there are some 
 While you can use markers to define your geofence, using polygons is highly recommended for greater accuracy and ease. If you do go the polygon route, make sure to place the markers in a counter-clockwise direction. The Python script will automatically recognize these as the shape of your geofence.
 
 However, if you still want to use markers, make sure to name them like p1, p2, p3, and so on. The Python script will look for markers with names starting with "p" to set the geofence shape. 
-
-
 
 Tags: ESP32, Arduino, Geofencing, Embedded Software, Python, Google Earth

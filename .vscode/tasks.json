@@ -9,46 +9,26 @@
                 "-g",
                 "${workspaceFolder}\\*.cpp",
                 "-o",
-                "${workspaceFolder}\\myfile.exe"                
+                "${workspaceFolder}\\build\\myfile.exe"
             ],
             "group": {
                 "kind": "build",
                 "isDefault": true
-            }
+            },
+            "dependsOn": [
+                "create_build_dir"
+            ]
         },
+        {
+            "label": "create_build_dir",
+            "type": "shell",
+            "command": "mkdir",
+            "args": [
+                "-p",
+                "${workspaceFolder}/build"
+            ],
+            "group": "build",
+            "problemMatcher": []
+        }
     ]
-
-    
 }
-
-
-// {
-//     "version": "2.0.0",
-//     "tasks": [
-//         {
-//             "label": "build myfile",
-//             "type": "shell",
-//             "command": "g++",
-//             "args": [
-//                 "-std=c++14",
-//                 "-g",
-//                 "-o",
-//                 "myfile.exe",
-//                 "main.cpp"
-//             ],
-//             "group": {
-//                 "kind": "build",
-//                 "isDefault": true
-//             }
-//         },
-//         {
-//             "label": "Open Terminal",
-//             "type": "shell",
-//             "command": "osascript -e 'tell application \"Terminal\"\ndo script \"echo hello\"\nend tell'",
-//             "problemMatcher": []
-//         }
-//     ]
-
-    
-// }
-
