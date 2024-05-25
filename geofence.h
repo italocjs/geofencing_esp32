@@ -1,5 +1,8 @@
 #pragma once
 #include <vector>
+#include <cmath>    // Include cmath for math functions and M_PI
+#include <limits>   // Include limits for numeric_limits
+#include <cstdio>   // Include cstdio for printf
 
 // Detect environment and include appropriate headers
 #if defined(_WIN32) || defined(__linux__)
@@ -8,6 +11,7 @@
 #define IMPL_M_PI 3.14159265358979323846    // same as esp32
 // define the esp_err_t for windows and linux
 #elif defined(ESP32) || defined(ARDUINO)
+#include <math.h>   // Ensure M_PI is defined
 #define IMPL_M_PI M_PI
 #else
 #warning "Unknown environment, please check your build environment."
